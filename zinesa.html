@@ -1,0 +1,827 @@
+<!--
+Pacífico Club - Sistema Web de Reservas (Versión 1 - Frontend Estático)
+Autor: ChatGPT + Zinedine Sayas
+Fecha: 20 julio 2025
+Descripción: Prototipo inicial en HTML, CSS y JavaScript puro (sin backend) para gestionar reservas de campos deportivos del Pacífico Club.
+
+CARACTERÍSTICAS INCLUIDAS EN ESTA V1:
+✅ Registro e inicio de sesión de usuarios (almacenado en localStorage)
+✅ Ingreso por ID de usuario (DNI / celular / código interno)
+✅ Vista de disponibilidad de horarios (calendario semanal interactivo + selector de fecha/hora)
+✅ Creación de reservas (fecha, hora inicio, hora fin, tipo de campo/servicio)
+✅ Estados de reserva: pendiente, confirmada, completada, cancelada
+✅ Registro de pagos: Yape, Plin, Transferencia, Efectivo (simulado)
+✅ Exportar registros a CSV (para Excel)
+✅ Panel administrativo protegido (rol admin) para gestionar reservas, pagos y estadísticas
+✅ Vista móvil y escritorio responsiva
+✅ Enlaces a WhatsApp Business y Google Maps
+✅ Placeholder para incrustar Calendly u otra herramienta externa (opcional)
+
+LO QUE NO ESTÁ (AÚN) EN ESTA V1:
+🚧 Sin autenticación real en servidor (todo local)
+🚧 Sin integración real con pasarelas de pago
+🚧 Sin base de datos remota (MySQL / Firebase / Supabase) – se puede agregar en V2
+🚧 Sin notificaciones automáticas por correo/WhatsApp (simulado)
+
+CÓMO USAR:
+1. Sube la carpeta completa a un repositorio de GitHub.
+2. Activa GitHub Pages en la rama main (Settings > Pages > Source > Deploy from branch).
+3. Accede a tu URL de GitHub Pages y prueba el sistema.
+4. Usa el botón "Datos de ejemplo" en el panel admin para poblar datos demo.
+
+CONFIGURACIÓN INICIAL:
+- Admin: usuario "admin@pacifico" / contraseña "admin123" (cámbialo en config.js o directo en el localStorage luego del primer uso).
+- Teléfono WhatsApp Business (placeholder): +51999999999 → actualiza.
+- Ubicación: Calle Real 1266, Chilca – Huancayo, Perú.
+
+ESTRUCTURA DE ARCHIVOS (incluida a continuación en un solo documento para facilidad de copiado):
+// index.html
+// assets/css/styles.css
+// assets/js/config.js
+// assets/js/storage.js
+// assets/js/ui.js
+// assets/js/calendar.js
+// assets/js/reservations.js
+// assets/js/admin.js
+// assets/js/payments.js
+// assets/js/export.js
+// assets/js/main.js (punto de entrada)
+
+Puedes copiar/pegar en archivos separados. Si prefieres 1 solo archivo funcional, basta con usar index.html (que trae estilos y scripts embebidos en esta versión empaquetada). Abajo incluyo ambas opciones: primero la versión MULTI-ARCHIVO recomendada; luego una versión ÚNICA (todo en 1) por si necesitas algo rápido para clase.
+
+-->
+
+<!-- ============================================================= -->
+<!-- ===============   OPCIÓN RECOMENDADA (MULTI)   =============== -->
+<!-- ============================================================= -->
+<!-- Guarda esto como index.html en la raíz del proyecto -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pacífico Club | Reservas de Campos Deportivos</title>
+  <meta name="description" content="Sistema de reservas en línea para Pacífico Club, Chilca – Huancayo." />
+  <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <!-- Fuente Google (opcional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js para estadísticas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <img src="assets/img/logo.png" alt="Pacífico Club" class="logo"/>
+        <span>Pacífico Club</span>
+      </div>
+      <nav class="main-nav">
+        <button class="nav-link" data-route="home">Inicio</button>
+        <button class="nav-link" data-route="reservar">Reservar</button>
+        <button class="nav-link" data-route="mis-reservas">Mis Reservas</button>
+        <button class="nav-link" data-route="contacto">Contacto</button>
+        <button id="adminNavBtn" class="nav-link admin-only" data-route="admin" hidden>Admin</button>
+      </nav>
+      <div class="user-box" id="userBox">
+        <button id="loginBtn" class="btn-primary">Ingresar</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="appRoot">
+    <!-- Rutas renderizadas dinámicamente -->
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="yearSpan"></span> Pacífico Club – Calle Real 1266, Chilca – Huancayo. Todos los derechos reservados.</p>
+  </footer>
+
+  <!-- Modal contenedor global -->
+  <div id="modalContainer" class="modal-container" data-visible="false"></div>
+
+  <!-- Scripts del proyecto -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/storage.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/calendar.js"></script>
+  <script src="assets/js/reservations.js"></script>
+  <script src="assets/js/payments.js"></script>
+  <script src="assets/js/export.js"></script>
+  <script src="assets/js/admin.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/css/styles.css   ==================== -->
+<!-- ============================================================= -->
+<style id="__inline_styles_css__">
+:root {
+  --primary:#0055ff;
+  --primary-dark:#003ec0;
+  --accent:#00c853;
+  --danger:#ff1744;
+  --warning:#ffab00;
+  --gray-100:#f5f5f5;
+  --gray-200:#eeeeee;
+  --gray-300:#e0e0e0;
+  --gray-500:#9e9e9e;
+  --gray-700:#616161;
+  --gray-900:#212121;
+  --radius:8px;
+  --shadow:0 2px 6px rgba(0,0,0,.1);
+  --maxw:1200px;
+  --header-h:64px;
+  --trans-fast:.15s;
+  --trans-med:.25s;
+  --font-body:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;font-family:var(--font-body);color:var(--gray-900);background:#fff;line-height:1.4;}
+img{max-width:100%;height:auto;}
+button{cursor:pointer;font-family:inherit;}
+a{text-decoration:none;color:var(--primary);}a:hover{text-decoration:underline;}
+
+.topbar{position:sticky;top:0;width:100%;height:var(--header-h);background:#fff;border-bottom:1px solid var(--gray-300);z-index:100;}
+.topbar-inner{max-width:var(--maxw);margin:0 auto;height:100%;display:flex;align-items:center;justify-content:space-between;padding:0 1rem;gap:.5rem;}
+.brand{display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:1.1rem;}
+.logo{height:40px;width:auto;}
+.main-nav{display:flex;align-items:center;gap:.5rem;}
+.nav-link{background:none;border:none;padding:.5rem .75rem;border-radius:var(--radius);transition:background var(--trans-fast);} 
+.nav-link:hover{background:var(--gray-100);} 
+.nav-link.active{background:var(--primary);color:#fff;}
+
+.user-box{display:flex;align-items:center;gap:.5rem;}
+.btn-primary{background:var(--primary);color:#fff;border:none;padding:.5rem 1rem;border-radius:var(--radius);transition:background var(--trans-fast);} 
+.btn-primary:hover{background:var(--primary-dark);} 
+.btn-ghost{background:none;border:1px solid var(--primary);color:var(--primary);padding:.4rem .8rem;border-radius:var(--radius);} 
+.btn-danger{background:var(--danger);color:#fff;border:none;padding:.4rem .8rem;border-radius:var(--radius);} 
+.btn-accent{background:var(--accent);color:#fff;border:none;padding:.4rem .8rem;border-radius:var(--radius);} 
+.btn-warning{background:var(--warning);color:#000;border:none;padding:.4rem .8rem;border-radius:var(--radius);} 
+
+.site-footer{text-align:center;padding:2rem 1rem;font-size:.9rem;color:var(--gray-700);background:var(--gray-100);margin-top:4rem;}
+
+/* Layout util */
+.container{max-width:var(--maxw);margin:0 auto;padding:2rem 1rem;}
+.grid{display:grid;gap:1rem;}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+.card{background:#fff;border:1px solid var(--gray-300);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.5rem;}
+.card h3{margin-top:0}
+
+/* Hero */
+.hero{padding:4rem 1rem;text-align:center;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff;}
+.hero h1{margin:0 0 1rem;font-size:clamp(1.75rem,5vw,2.75rem);} 
+.hero p{margin:0 0 2rem;font-size:1.125rem;} 
+.hero .hero-actions{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;}
+
+/* Tablas */
+table{width:100%;border-collapse:collapse;font-size:.95rem;}
+th,td{border:1px solid var(--gray-300);padding:.5rem;text-align:left;}th{background:var(--gray-100);}tr:nth-child(even){background:var(--gray-100);} 
+.status-pill{padding:.2rem .5rem;border-radius:var(--radius);font-size:.8rem;font-weight:600;display:inline-block;} 
+.status-pendiente{background:var(--warning);color:#000;} 
+.status-confirmada{background:var(--accent);color:#fff;} 
+.status-completada{background:var(--primary-dark);color:#fff;} 
+.status-cancelada{background:var(--danger);color:#fff;} 
+
+/* Formularios */
+form{display:grid;gap:.75rem;}
+label{font-weight:600;font-size:.9rem;}
+input,select,textarea{width:100%;padding:.5rem;border:1px solid var(--gray-300);border-radius:var(--radius);font-size:1rem;} 
+input[type="datetime-local"]{font-size:.95rem;}
+.form-row{display:grid;gap:.5rem;} 
+.form-row.inline{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;align-items:end;}
+.form-actions{display:flex;gap:.5rem;justify-content:flex-end;}
+
+/* Calendario semanal */
+.calendar-grid{display:grid;grid-template-columns:repeat(8,1fr);border:1px solid var(--gray-300);font-size:.85rem;}
+.calendar-grid .cal-header{background:var(--gray-100);font-weight:600;padding:.25rem;text-align:center;border-bottom:1px solid var(--gray-300);} 
+.calendar-grid .cal-cell{min-height:48px;border-right:1px solid var(--gray-300);border-bottom:1px solid var(--gray-300);position:relative;padding:.25rem;cursor:pointer;} 
+.calendar-grid .cal-cell:last-child{border-right:none;} 
+.calendar-grid .cal-cell.reserved{background:rgba(255,23,68,.2);} 
+.calendar-grid .cal-cell.available:hover{background:rgba(0,85,255,.15);} 
+.calendar-grid .cal-cell .slot-label{position:absolute;top:2px;left:2px;font-size:.7rem;color:var(--gray-700);} 
+
+/* Modal */
+.modal-container{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:1rem;z-index:1000;} 
+.modal-container[data-visible="true"]{display:flex;} 
+.modal{background:#fff;max-width:600px;width:100%;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.5rem;position:relative;} 
+.modal h2{margin-top:0;margin-bottom:1rem;} 
+.modal-close{position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:1.25rem;line-height:1;color:var(--gray-700);} 
+
+/* Responsive */
+@media (max-width:600px){
+  .topbar-inner{flex-wrap:wrap;gap:.75rem;}
+  .main-nav{order:2;width:100%;justify-content:center;}
+  .user-box{order:3;width:100%;justify-content:center;}
+  .hero{padding:3rem 1rem;}
+}
+</style>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/config.js   ====================== -->
+<!-- ============================================================= -->
+<script id="__inline_config_js__">
+window.PACIFICO_CONFIG = {
+  clubName: "Pacífico Club",
+  address: "Calle Real 1266, Chilca – Huancayo, Perú",
+  whatsappNumber: "+51999999999", // <-- ACTUALIZA
+  whatsappMsg: "Hola Pacífico Club, quiero reservar una cancha.",
+  timezone: "America/Lima",
+  adminDefaultUser: {
+    email: "admin@pacifico",
+    password: "admin123",
+    nombre: "Administrador",
+    rol: "admin",
+    idUsuario: "ADMIN-001"
+  },
+  servicios: [
+    {id:"campo_futbol", nombre:"Campo de Fútbol 7", duracionMin:60, precioSugerido:80},
+    {id:"campo_voley", nombre:"Cancha de Vóley", duracionMin:60, precioSugerido:50},
+    {id:"campo_mixto", nombre:"Campo Multiuso", duracionMin:60, precioSugerido:60}
+  ],
+  horarioOperacion: { // Horario general diario (puedes hacer por día más adelante)
+    apertura:"08:00",
+    cierre:"23:00",
+    intervaloMin:60
+  }
+};
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/storage.js   ===================== -->
+<!-- ============================================================= -->
+<script id="__inline_storage_js__">
+(function(){
+  const LS_KEY = 'pacificoClubData_v1';
+  const seed = () => ({users:[],reservas:[],pagos:[],meta:{created:Date.now(),version:1}});
+
+  function load(){
+    try{const raw=localStorage.getItem(LS_KEY);if(!raw){const data=seed();save(data);return data;}return JSON.parse(raw);}catch(e){console.error('load err',e);const data=seed();save(data);return data;}
+  }
+  function save(data){localStorage.setItem(LS_KEY,JSON.stringify(data));}
+  function wipe(){localStorage.removeItem(LS_KEY);} // debug
+
+  let db = load();
+
+  // Ensure admin exists
+  function ensureAdmin(){
+    const cfg = window.PACIFICO_CONFIG.adminDefaultUser;
+    if(!db.users.find(u=>u.email===cfg.email)){
+      db.users.push({id:cfg.idUsuario,email:cfg.email,password:cfg.password,nombre:cfg.nombre,rol:cfg.rol,activo:true,telefono:"",created:Date.now()});
+      save(db);
+    }
+  }
+  ensureAdmin();
+
+  // ID utils
+  const uid = (p="id")=>`${p}_${Math.random().toString(36).slice(2,10)}_${Date.now().toString(36)}`;
+
+  // USERS --------------------------------------------------------
+  function createUser({email,password,nombre,telefono,idUsuario}){
+    const id = idUsuario?.trim()||uid('USR');
+    const user={id,email,password,nombre,telefono,rol:'user',activo:true,created:Date.now()};
+    db.users.push(user);save(db);return user;
+  }
+  function getUserByEmail(email){return db.users.find(u=>u.email===email)||null;}
+  function getUserById(id){return db.users.find(u=>u.id===id)||null;}
+  function authUser(email,pwd){const u=getUserByEmail(email);return (u && u.password===pwd)?u:null;}
+
+  // RESERVAS -----------------------------------------------------
+  function createReserva({userId,servicioId,fechaInicio,fechaFin,nota}){
+    const res={id:uid('RES'),userId,servicioId,fechaInicio,fechaFin,estado:'pendiente',nota:nota||'',created:Date.now()};
+    db.reservas.push(res);save(db);return res;
+  }
+  function getReservas(){return db.reservas.slice();}
+  function getReservasByUser(userId){return db.reservas.filter(r=>r.userId===userId);}  
+  function updateReservaEstado(resId,estado){const r=db.reservas.find(x=>x.id===resId);if(r){r.estado=estado;save(db);}return r;}
+  function updateReserva(resId,patch){const r=db.reservas.find(x=>x.id===resId);if(r){Object.assign(r,patch);save(db);}return r;}
+
+  // PAGOS --------------------------------------------------------
+  function createPago({reservaId,monto,metodo,referencia}){
+    const pago={id:uid('PAY'),reservaId,monto,metodo,referencia,fecha:Date.now()};
+    db.pagos.push(pago);save(db);return pago;
+  }
+  function getPagos(){return db.pagos.slice();}
+  function getPagosByReserva(reservaId){return db.pagos.filter(p=>p.reservaId===reservaId);}  
+
+  // EXPORT -------------------------------------------------------
+  function exportData(){return JSON.parse(JSON.stringify(db));}
+  function importData(newData){db=newData;save(db);}
+
+  // SAMPLE DATA --------------------------------------------------
+  function loadSampleData(){
+    const now = Date.now();
+    const u1=createUser({email:"juan@example.com",password:"123",nombre:"Juan Perez",telefono:"999111222",idUsuario:"USR-JUAN"});
+    const u2=createUser({email:"maria@example.com",password:"123",nombre:"María Lopez",telefono:"988555444",idUsuario:"USR-MARIA"});
+    const start = new Date();start.setHours(10,0,0,0);
+    const end = new Date(start);end.setHours(11,0,0,0);
+    createReserva({userId:u1.id,servicioId:"campo_futbol",fechaInicio:start.toISOString(),fechaFin:end.toISOString(),nota:"Partido amistoso"});
+    createReserva({userId:u2.id,servicioId:"campo_voley",fechaInicio:new Date(start.getTime()+86400000).toISOString(),fechaFin:new Date(end.getTime()+86400000).toISOString(),nota:"Entrenamiento"});
+  }
+
+  window.PacificoStorage={
+    createUser,getUserByEmail,getUserById,authUser,
+    createReserva,getReservas,getReservasByUser,updateReservaEstado,updateReserva,
+    createPago,getPagos,getPagosByReserva,
+    exportData,importData,loadSampleData,wipe
+  };
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/ui.js   ========================== -->
+<!-- ============================================================= -->
+<script id="__inline_ui_js__">
+(function(){
+  const modalContainer=document.getElementById('modalContainer');
+  const userBox=document.getElementById('userBox');
+  const adminNavBtn=document.getElementById('adminNavBtn');
+
+  let currentUser=null; // runtime session only
+
+  function updateUserUI(){
+    userBox.innerHTML='';
+    if(!currentUser){
+      const btn=document.createElement('button');btn.id='loginBtn';btn.className='btn-primary';btn.textContent='Ingresar';btn.addEventListener('click',showLoginModal);userBox.appendChild(btn);
+      adminNavBtn.hidden=true;
+    }else{
+      const span=document.createElement('span');span.textContent=currentUser.nombre||currentUser.email;userBox.appendChild(span);
+      const out=document.createElement('button');out.className='btn-ghost';out.textContent='Salir';out.addEventListener('click',()=>{currentUser=null;updateUserUI();window.router.navigate('home');});userBox.appendChild(out);
+      if(currentUser.rol==='admin'){adminNavBtn.hidden=false;}else{adminNavBtn.hidden=true;}
+    }
+  }
+
+  // ------ Modal base ------
+  function openModal(content){
+    modalContainer.innerHTML='';
+    const modal=document.createElement('div');modal.className='modal';
+    const close=document.createElement('button');close.className='modal-close';close.innerHTML='&times;';close.addEventListener('click',closeModal);
+    modal.appendChild(close);
+    modal.appendChild(content);
+    modalContainer.appendChild(modal);
+    modalContainer.dataset.visible='true';
+  }
+  function closeModal(){modalContainer.dataset.visible='false';}
+
+  // ------ Login ------
+  function showLoginModal(){
+    const wrp=document.createElement('div');
+    const h=document.createElement('h2');h.textContent='Ingresar';wrp.appendChild(h);
+    const form=document.createElement('form');
+    form.innerHTML=`
+      <label>Correo / Usuario
+        <input required type="text" name="email" placeholder="tu@correo.com o admin@pacifico"/>
+      </label>
+      <label>Contraseña
+        <input required type="password" name="pwd" placeholder="••••••"/>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="gotoRegister">Registrarme</button>
+        <button type="submit" class="btn-primary">Ingresar</button>
+      </div>`;
+    form.addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(form);const email=fd.get('email').trim();const pwd=fd.get('pwd').trim();const u=PacificoStorage.authUser(email,pwd);if(!u){alert('Credenciales inválidas.');return;}currentUser=u;updateUserUI();closeModal();window.router.navigate('mis-reservas');});
+    form.querySelector('#gotoRegister').addEventListener('click',showRegisterModal);
+    wrp.appendChild(form);
+    openModal(wrp);
+  }
+
+  // ------ Registro ------
+  function showRegisterModal(){
+    const wrp=document.createElement('div');
+    const h=document.createElement('h2');h.textContent='Registrarme';wrp.appendChild(h);
+    const form=document.createElement('form');
+    form.innerHTML=`
+      <label>Nombre completo
+        <input required type="text" name="nombre" placeholder="Nombre y Apellido"/>
+      </label>
+      <label>Correo electrónico
+        <input required type="email" name="email" placeholder="tu@correo.com"/>
+      </label>
+      <label>Teléfono / WhatsApp
+        <input type="tel" name="telefono" placeholder="999999999"/>
+      </label>
+      <label>ID Personal (DNI / código) - opcional
+        <input type="text" name="idUsuario" placeholder="DNI o código"/>
+      </label>
+      <label>Contraseña
+        <input required type="password" name="pwd" placeholder="••••••"/>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="gotoLogin">Ya tengo cuenta</button>
+        <button type="submit" class="btn-primary">Crear cuenta</button>
+      </div>`;
+    form.addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(form);const user=PacificoStorage.createUser({nombre:fd.get('nombre').trim(),email:fd.get('email').trim(),telefono:fd.get('telefono').trim(),idUsuario:fd.get('idUsuario').trim(),password:fd.get('pwd').trim()});currentUser=user;updateUserUI();closeModal();window.router.navigate('reservar');});
+    form.querySelector('#gotoLogin').addEventListener('click',showLoginModal);
+    wrp.appendChild(form);
+    openModal(wrp);
+  }
+
+  // ------ Expose ------
+  window.UI={openModal,closeModal,showLoginModal,showRegisterModal,updateUserUI,get currentUser(){return currentUser;},set currentUser(u){currentUser=u;updateUserUI();}};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/calendar.js   ==================== -->
+<!-- ============================================================= -->
+<script id="__inline_calendar_js__">
+(function(){
+  /* Genera una grilla semanal simple (hoy -> siguientes 6 días) con intervalos de 1h */
+  const cfg=window.PACIFICO_CONFIG;
+  const minInterval=cfg.horarioOperacion.intervaloMin||60;
+
+  function getWeekDates(startDate=new Date()){
+    const arr=[];const d=new Date(startDate);d.setHours(0,0,0,0);
+    for(let i=0;i<7;i++){arr.push(new Date(d));d.setDate(d.getDate()+1);}return arr;
+  }
+  function timeToDate(baseDate,hhmm){const [hh,mm]=hhmm.split(':').map(Number);const dt=new Date(baseDate);dt.setHours(hh,mm,0,0);return dt;}
+  function genSlotsForDay(baseDate){
+    const slots=[];const start=timeToDate(baseDate,cfg.horarioOperacion.apertura);const end=timeToDate(baseDate,cfg.horarioOperacion.cierre);let cur=new Date(start);
+    while(cur<end){const next=new Date(cur.getTime()+minInterval*60000);slots.push({start:new Date(cur),end:next});cur=next;}
+    return slots;
+  }
+
+  function isSlotReserved(reservas,slotStart,slotEnd,servId){
+    // overlap check for same servicio
+    return reservas.some(r=>r.servicioId===servId && !(new Date(r.fechaFin)<=slotStart || new Date(r.fechaInicio)>=slotEnd));
+  }
+
+  function renderWeeklyCalendar(servicioId,container,reservas,onSelect){
+    container.innerHTML='';
+    const week=getWeekDates();
+    const firstDay=week[0];
+    const slots=genSlotsForDay(firstDay); // same number across days
+
+    const grid=document.createElement('div');grid.className='calendar-grid';
+    // headers row: hora + days
+    grid.appendChild(headerCell('Hora'));
+    week.forEach(day=>{grid.appendChild(headerCell(dayLabel(day)));});
+
+    slots.forEach(slot=>{
+      // 1st col hour label
+      const lbl=document.createElement('div');lbl.className='cal-header';lbl.textContent=timeLabel(slot.start);grid.appendChild(lbl);
+      week.forEach(day=>{
+        const s=new Date(day);s.setHours(slot.start.getHours(),slot.start.getMinutes());
+        const e=new Date(day);e.setHours(slot.end.getHours(),slot.end.getMinutes());
+        const cell=document.createElement('div');cell.className='cal-cell';
+        const reserved=isSlotReserved(reservas,s,e,servicioId);
+        cell.classList.add(reserved?'reserved':'available');
+        const tag=document.createElement('span');tag.className='slot-label';tag.textContent=`${timeLabel(s)}-${timeLabel(e)}`;cell.appendChild(tag);
+        if(!reserved){cell.addEventListener('click',()=>onSelect(s,e));}
+        grid.appendChild(cell);
+      });
+    });
+    container.appendChild(grid);
+  }
+
+  function headerCell(txt){const d=document.createElement('div');d.className='cal-header';d.textContent=txt;return d;}
+  function dayLabel(d){return d.toLocaleDateString('es-PE',{weekday:'short',day:'numeric',month:'short'});}
+  function timeLabel(d){return d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});}
+
+  window.PacificoCalendar={renderWeeklyCalendar};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/reservations.js  ================= -->
+<!-- ============================================================= -->
+<script id="__inline_reservations_js__">
+(function(){
+  const cfg=window.PACIFICO_CONFIG;
+  const servicios=cfg.servicios;
+
+  function reservasRoute(){
+    const root=document.createElement('div');root.className='container';
+    const h=document.createElement('h2');h.textContent='Reservar Cancha';root.appendChild(h);
+
+    if(!UI.currentUser){
+      const p=document.createElement('p');p.textContent='Debes iniciar sesión para reservar.';root.appendChild(p);
+      const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='Ingresar';btn.addEventListener('click',UI.showLoginModal);root.appendChild(btn);return root;
+    }
+
+    // selector de servicio
+    const servSel=document.createElement('select');servicios.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.nombre;servSel.appendChild(o);});
+    const servLbl=document.createElement('label');servLbl.textContent='Servicio / Campo';servLbl.appendChild(servSel);root.appendChild(servLbl);
+
+    // calendario
+    const calWrap=document.createElement('div');root.appendChild(calWrap);
+
+    function onSlot(s,e){
+      showReservaForm({servicioId:servSel.value,fechaInicio:s,fechaFin:e});
+    }
+
+    function renderCal(){
+      const reservas=PacificoStorage.getReservas();
+      PacificoCalendar.renderWeeklyCalendar(servSel.value,calWrap,reservas,onSlot);
+    }
+
+    servSel.addEventListener('change',renderCal);
+    renderCal();
+    return root;
+  }
+
+  function showReservaForm({servicioId,fechaInicio,fechaFin}){
+    const wrp=document.createElement('div');
+    const h=document.createElement('h2');h.textContent='Confirmar Reserva';wrp.appendChild(h);
+    const form=document.createElement('form');
+    const sServ=window.PACIFICO_CONFIG.servicios.find(s=>s.id===servicioId);
+    const fi=fechaInicio instanceof Date?fechaInicio:new Date(fechaInicio);
+    const ff=fechaFin instanceof Date?fechaFin:new Date(fechaFin);
+    form.innerHTML=`
+      <p><strong>Campo:</strong> ${sServ?.nombre||servicioId}</p>
+      <p><strong>Inicio:</strong> ${fi.toLocaleString('es-PE')}</p>
+      <p><strong>Fin:</strong> ${ff.toLocaleString('es-PE')}</p>
+      <label>Nota (opcional)
+        <textarea name="nota" rows="3" placeholder="Ej: Partido con amigos."></textarea>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancelReserva">Cancelar</button>
+        <button type="submit" class="btn-primary">Reservar</button>
+      </div>`;
+    form.addEventListener('submit',e=>{e.preventDefault();if(!UI.currentUser){alert('Inicia sesión.');return;}const fd=new FormData(form);const res=PacificoStorage.createReserva({userId:UI.currentUser.id,servicioId,fechaInicio:fi.toISOString(),fechaFin:ff.toISOString(),nota:fd.get('nota')});UI.closeModal();alert('Reserva creada. Estado: pendiente.');window.router.navigate('mis-reservas');});
+    form.querySelector('#cancelReserva').addEventListener('click',UI.closeModal);
+    wrp.appendChild(form);UI.openModal(wrp);
+  }
+
+  function misReservasRoute(){
+    const root=document.createElement('div');root.className='container';
+    const h=document.createElement('h2');h.textContent='Mis Reservas';root.appendChild(h);
+    if(!UI.currentUser){
+      const p=document.createElement('p');p.textContent='Debes iniciar sesión para ver tus reservas.';root.appendChild(p);
+      const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='Ingresar';btn.addEventListener('click',UI.showLoginModal);root.appendChild(btn);return root;}
+
+    const reservas=PacificoStorage.getReservasByUser(UI.currentUser.id);
+    if(!reservas.length){
+      const p=document.createElement('p');p.textContent='No tienes reservas.';root.appendChild(p);return root;}
+
+    const tbl=document.createElement('table');
+    tbl.innerHTML=`<thead><tr><th>Fecha</th><th>Campo</th><th>Estado</th><th>Acciones</th></tr></thead>`;
+    const tb=document.createElement('tbody');
+    reservas.forEach(r=>{
+      const tr=document.createElement('tr');
+      const fi=new Date(r.fechaInicio);
+      const sServ=servicios.find(s=>s.id===r.servicioId);
+      tr.innerHTML=`
+        <td>${fi.toLocaleString('es-PE')}</td>
+        <td>${sServ?.nombre||r.servicioId}</td>
+        <td>${statusPill(r.estado)}</td>
+        <td></td>`;
+      const tdAct=tr.querySelector('td:last-child');
+      // pagar si pendiente
+      if(r.estado==='pendiente'){
+        const payBtn=document.createElement('button');payBtn.className='btn-accent';payBtn.textContent='Pagar';payBtn.addEventListener('click',()=>Payments.showPagoModal(r));tdAct.appendChild(payBtn);
+      }
+      // cancelar
+      if(r.estado==='pendiente' || r.estado==='confirmada'){
+        const cancelBtn=document.createElement('button');cancelBtn.className='btn-danger';cancelBtn.textContent='Cancelar';cancelBtn.addEventListener('click',()=>{if(confirm('¿Cancelar reserva?')){PacificoStorage.updateReservaEstado(r.id,'cancelada');window.router.refresh();}});tdAct.appendChild(cancelBtn);
+      }
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);root.appendChild(tbl);return root;
+  }
+
+  function statusPill(st){return `<span class="status-pill status-${st}">${st}</span>`;}
+
+  window.PacificoReservations={reservasRoute,misReservasRoute,showReservaForm};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/payments.js  ===================== -->
+<!-- ============================================================= -->
+<script id="__inline_payments_js__">
+(function(){
+  const METODOS=[
+    {id:'yape',label:'Yape'},
+    {id:'plin',label:'Plin'},
+    {id:'transferencia',label:'Transferencia Bancaria'},
+    {id:'efectivo',label:'Pago Presencial (Efectivo)'}
+  ];
+
+  function showPagoModal(reserva){
+    const wrp=document.createElement('div');
+    const h=document.createElement('h2');h.textContent='Registrar Pago';wrp.appendChild(h);
+    const form=document.createElement('form');
+    form.innerHTML=`
+      <p>Reserva: ${new Date(reserva.fechaInicio).toLocaleString('es-PE')}</p>
+      <label>Monto (S/.)
+        <input required type="number" step="0.01" min="0" name="monto" placeholder="0.00"/>
+      </label>
+      <label>Método de pago
+        <select name="metodo" required>
+          ${METODOS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('')}
+        </select>
+      </label>
+      <label>Referencia / Código (opcional)
+        <input type="text" name="ref" placeholder="ID transacción"/>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" id="cancelPay">Cerrar</button>
+        <button type="submit" class="btn-primary">Registrar</button>
+      </div>`;
+    form.addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(form);const pago=PacificoStorage.createPago({reservaId:reserva.id,monto:Number(fd.get('monto')),metodo:fd.get('metodo'),referencia:fd.get('ref')});PacificoStorage.updateReservaEstado(reserva.id,'confirmada');UI.closeModal();alert('Pago registrado. Reserva confirmada.');window.router.refresh();});
+    form.querySelector('#cancelPay').addEventListener('click',UI.closeModal);
+    wrp.appendChild(form);
+    UI.openModal(wrp);
+  }
+
+  function pagosTable(reservaId){
+    const pagos=PacificoStorage.getPagosByReserva(reservaId);
+    if(!pagos.length)return '—';
+    return `<ul>${pagos.map(p=>`<li>${p.metodo} S/.${p.monto.toFixed?p.monto.toFixed(2):p.monto}</li>`).join('')}</ul>`;
+  }
+
+  window.Payments={showPagoModal,pagosTable};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/export.js  ====================== -->
+<!-- ============================================================= -->
+<script id="__inline_export_js__">
+(function(){
+  function exportCSV(){
+    const data=PacificoStorage.exportData();
+    const rows=[];
+    rows.push(['Tipo','ID','Campos']);
+    data.users.forEach(u=>rows.push(['Usuario',u.id,JSON.stringify(u)]));
+    data.reservas.forEach(r=>rows.push(['Reserva',r.id,JSON.stringify(r)]));
+    data.pagos.forEach(p=>rows.push(['Pago',p.id,JSON.stringify(p)]));
+    const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='pacifico_reservas_export.csv';a.click();URL.revokeObjectURL(url);
+  }
+  window.PacificoExport={exportCSV};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/admin.js  ======================= -->
+<!-- ============================================================= -->
+<script id="__inline_admin_js__">
+(function(){
+  const cfg=window.PACIFICO_CONFIG;
+  const servicios=cfg.servicios;
+
+  function adminRoute(){
+    if(!UI.currentUser || UI.currentUser.rol!=='admin'){
+      const root=document.createElement('div');root.className='container';root.innerHTML='<h2>Acceso restringido</h2><p>Debes iniciar sesión como administrador.</p>';return root;
+    }
+    const root=document.createElement('div');root.className='container';
+    root.innerHTML='<h2>Panel Administrativo</h2>';
+
+    // botones
+    const btns=document.createElement('div');btns.className='form-actions';
+    const sample=document.createElement('button');sample.className='btn-warning';sample.textContent='Datos de ejemplo';sample.addEventListener('click',()=>{PacificoStorage.loadSampleData();window.router.refresh();});btns.appendChild(sample);
+    const exportBtn=document.createElement('button');exportBtn.className='btn-primary';exportBtn.textContent='Exportar CSV';exportBtn.addEventListener('click',PacificoExport.exportCSV);btns.appendChild(exportBtn);
+    const wipeBtn=document.createElement('button');wipeBtn.className='btn-danger';wipeBtn.textContent='Borrar TODO';wipeBtn.addEventListener('click',()=>{if(confirm('¿Seguro? Se borrarán datos locales.')){PacificoStorage.wipe();location.reload();}});btns.appendChild(wipeBtn);
+    root.appendChild(btns);
+
+    // tabla reservas
+    const reservas=PacificoStorage.getReservas();
+    const tbl=document.createElement('table');
+    tbl.innerHTML='<thead><tr><th>Usuario</th><th>Inicio</th><th>Campo</th><th>Estado</th><th>Pagos</th><th>Acciones</th></tr></thead>';
+    const tb=document.createElement('tbody');
+    reservas.forEach(r=>{
+      const tr=document.createElement('tr');
+      const user=PacificoStorage.getUserById(r.userId);
+      const serv=servicios.find(s=>s.id===r.servicioId);
+      tr.innerHTML=`
+        <td>${user?user.nombre: r.userId}</td>
+        <td>${new Date(r.fechaInicio).toLocaleString('es-PE')}</td>
+        <td>${serv?serv.nombre:r.servicioId}</td>
+        <td>${statusPill(r.estado)}</td>
+        <td>${Payments.pagosTable(r.id)}</td>
+        <td></td>`;
+      const tdAct=tr.querySelector('td:last-child');
+      if(r.estado!=='completada'){
+        const comp=document.createElement('button');comp.className='btn-accent';comp.textContent='Marcar completada';comp.addEventListener('click',()=>{PacificoStorage.updateReservaEstado(r.id,'completada');window.router.refresh();});tdAct.appendChild(comp);
+      }
+      if(r.estado!=='cancelada'){
+        const cancel=document.createElement('button');cancel.className='btn-danger';cancel.textContent='Cancelar';cancel.addEventListener('click',()=>{PacificoStorage.updateReservaEstado(r.id,'cancelada');window.router.refresh();});tdAct.appendChild(cancel);
+      }
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);root.appendChild(tbl);
+
+    // estadísticas
+    const statsCard=document.createElement('div');statsCard.className='card';statsCard.innerHTML='<h3>Estadísticas</h3><canvas id="adminStatsChart" height="120"></canvas>';
+    root.appendChild(statsCard);
+
+    setTimeout(renderStats,50); // after DOM
+    return root;
+  }
+
+  function renderStats(){
+    const ctx=document.getElementById('adminStatsChart');if(!ctx)return;
+    const all=PacificoStorage.getReservas();
+    const estados={pendiente:0,confirmada:0,completada:0,cancelada:0};
+    all.forEach(r=>{estados[r.estado]=(estados[r.estado]||0)+1;});
+    new Chart(ctx,{type:'bar',data:{labels:Object.keys(estados),datasets:[{label:'Reservas',data:Object.values(estados)}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+  }
+
+  function statusPill(st){return `<span class="status-pill status-${st}">${st}</span>`;}
+
+  window.PacificoAdmin={adminRoute};
+})();
+</script>
+
+<!-- ============================================================= -->
+<!-- ===============   assets/js/main.js  ======================== -->
+<!-- ============================================================= -->
+<script id="__inline_main_js__">
+(function(){
+  const appRoot=document.getElementById('appRoot');
+  document.getElementById('yearSpan').textContent=(new Date()).getFullYear();
+
+  // Router simple basado en data-route
+  const navBtns=document.querySelectorAll('.nav-link');
+  navBtns.forEach(btn=>btn.addEventListener('click',()=>{router.navigate(btn.dataset.route);}));
+
+  function setActive(route){navBtns.forEach(b=>b.classList.toggle('active',b.dataset.route===route));}
+
+  function render(route){
+    setActive(route);
+    let view;
+    switch(route){
+      case 'home': view=homeRoute(); break;
+      case 'reservar': view=PacificoReservations.reservasRoute(); break;
+      case 'mis-reservas': view=PacificoReservations.misReservasRoute(); break;
+      case 'contacto': view=contactRoute(); break;
+      case 'admin': view=PacificoAdmin.adminRoute(); break;
+      default: view=homeRoute();
+    }
+    appRoot.innerHTML='';appRoot.appendChild(view);
+  }
+
+  function refresh(){render(currentRoute);} // used after data changes
+
+  let currentRoute='home';
+  const router={navigate(r){currentRoute=r;render(r);history.replaceState({},'',`#${r}`);},refresh};
+  window.router=router;
+
+  function homeRoute(){
+    const root=document.createElement('div');
+    // hero
+    const hero=document.createElement('section');hero.className='hero';
+    hero.innerHTML=`
+      <h1>Reserva tu cancha en línea</h1>
+      <p>Ahorra tiempo, evita confusiones y asegura tu turno en Pacífico Club.</p>`;
+    const act=document.createElement('div');act.className='hero-actions';
+    const btn1=document.createElement('button');btn1.className='btn-primary';btn1.textContent='Reservar ahora';btn1.addEventListener('click',()=>router.navigate('reservar'));
+    const btn2=document.createElement('button');btn2.className='btn-ghost';btn2.textContent='Contactar por WhatsApp';btn2.addEventListener('click',openWhatsApp);
+    act.appendChild(btn1);act.appendChild(btn2);hero.appendChild(act);root.appendChild(hero);
+
+    // features
+    const wrap=document.createElement('div');wrap.className='container grid grid-2';
+    wrap.innerHTML=`
+      <div class="card"><h3>Ver disponibilidad</h3><p>Consulta horarios en tiempo real antes de ir.</p></div>
+      <div class="card"><h3>Reservar en línea</h3><p>Elige fecha y hora, confirma y paga seguro.</p></div>
+      <div class="card"><h3>Pagos flexibles</h3><p>Yape, Plin, transferencia o en efectivo.</p></div>
+      <div class="card"><h3>Historial</h3><p>Lleva control de tus reservas y pagos.</p></div>`;
+    root.appendChild(wrap);
+
+    // mapa
+    const mapC=document.createElement('div');mapC.className='container card';mapC.innerHTML=`<h3>Ubicación</h3><iframe style="border:0;width:100%;height:300px" loading="lazy" allowfullscreen src="https://www.google.com/maps?q=${encodeURIComponent(window.PACIFICO_CONFIG.address)}&output=embed"></iframe>`;root.appendChild(mapC);
+    return root;
+  }
+
+  function contactRoute(){
+    const root=document.createElement('div');root.className='container';
+    root.innerHTML='<h2>Contacto</h2>';
+    const p=document.createElement('p');p.innerHTML=`Dirección: ${window.PACIFICO_CONFIG.address}`;root.appendChild(p);
+    const w=document.createElement('button');w.className='btn-primary';w.textContent='WhatsApp';w.addEventListener('click',openWhatsApp);root.appendChild(w);
+
+    // Calendly placeholder
+    const cal=document.createElement('div');cal.className='card';cal.innerHTML='<h3>Reservar vía Calendly (opcional)</h3><p>Incrusta tu enlace de Calendly aquí.</p>';// TODO embed
+    root.appendChild(cal);
+    return root;
+  }
+
+  function openWhatsApp(){
+    const num=window.PACIFICO_CONFIG.whatsappNumber.replace(/[^\d+]/g,'');
+    const msg=encodeURIComponent(window.PACIFICO_CONFIG.whatsappMsg);
+    window.open(`https://wa.me/${num}?text=${msg}`,'_blank');
+  }
+
+  // Inicial
+  const hash=location.hash.replace('#','');
+  if(hash)currentRoute=hash;render(currentRoute);
+  UI.updateUserUI();
+})();
+</script>
+
+
+<!-- ============================================================= -->
+<!-- =================  OPCIÓN TODO-EN-UNO (RÁPIDA)  ============= -->
+<!-- ============================================================= -->
+<!--
+Si prefieres subir SOLO este archivo sin carpetas, puedes usar la versión empaquetada.
+1. Guarda como index.html
+2. Elimina las referencias a archivos externos <link>/<script> en <head> y <body> (ya están inline arriba).
+3. Revisa rutas de imágenes (usa tu propio logo o quita <img>).
+-->
+<!-- Fin del documento principal -->
